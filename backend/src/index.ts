@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { config } from './config/env';
 import { logger } from './utils/logger';
 import { requestLogger } from './middleware/logger';
@@ -10,6 +11,7 @@ import { FfmpegManager } from './services/FfmpegManager';
 import { SessionManager } from './services/SessionManager';
 import { createRouter } from './routes';
 import { setupGracefulShutdown } from './utils/cleanup';
+import { startMemoryMonitoring, getMemoryStats } from './utils/memory';
 
 async function main() {
   logger.info('Starting Straimer backend');
@@ -27,18 +29,33 @@ async function main() {
   const app = express();
 
   // Middleware
+  app.use(cors({
+    origin: config.NODE_ENV === 'production' ? false : '*',
+    credentials: true,
+  }));
   app.use(express.json());
   app.use(requestLogger);
 
   // Health check endpoint (public)
   app.get('/health', (_req, res) => {
     const stats = sessionManager.getStats();
+    const memory = getMemoryStats();
+
     res.status(HTTP_STATUS.OK).json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       sessions: stats.sessionCount,
       activeStreams: stats.activeCount,
+      memory: {
+        rss: memory.rssFormatted,
+        heapUsed: memory.heapUsedFormatted,
+        heapPercent: `${memory.heapUsedPercent.toFixed(1)}%`,
+      },
+      buffers: {
+        totalFiles: stats.bufferStats.totalFiles,
+        totalSize: memory.rssFormatted,
+      },
     });
   });
 
@@ -60,6 +77,9 @@ async function main() {
       'Server started'
     );
   });
+
+  // Start memory monitoring (every 5 minutes, warn at 500MB)
+  startMemoryMonitoring(300000, 500);
 
   // Setup graceful shutdown
   await setupGracefulShutdown(server, sessionManager);
