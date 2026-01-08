@@ -114,7 +114,25 @@ See `backend/.env.example` for full list.
 - Config loader and structured logging
 - Basic Express server with health check
 
-**Phase 2-5**: See [PLAN.md](./PLAN.md) for detailed implementation plan
+**Phase 2: Core Services** ✓ Complete
+- AudioLibrary service (read JSON, validate files)
+- BufferStore (in-memory HLS content storage)
+- SessionManager (lifecycle management, cleanup)
+- Auth middleware and error handling
+
+**Phase 3: ffmpeg Integration** ✓ Complete
+- FfmpegManager (multi-output spawning)
+- File watching and segment capture
+- Memory-based streaming (no disk I/O)
+- Graceful process termination
+
+**Phase 4: API Endpoints** ✓ Complete
+- Session management (POST/GET/DELETE /api/sessions)
+- Library listing (GET /api/library)
+- HLS streaming (GET /stream/:sessionId/...)
+- Full authentication on all endpoints
+
+**Phase 5**: See [PLAN.md](./PLAN.md) for remaining tasks
 
 ## Important Notes
 
