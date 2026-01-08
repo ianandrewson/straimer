@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Session, SessionInfo } from '../models/Session';
 import { BufferStore } from './BufferStore';
 import { AudioLibrary } from './AudioLibrary';
+import { FfmpegManager } from './FfmpegManager';
 import { logger } from '../utils/logger';
 import { config } from '../config/env';
 import { SESSION_STATES } from '../config/constants';
@@ -10,12 +11,14 @@ export class SessionManager {
   private sessions: Map<string, Session>;
   private bufferStore: BufferStore;
   private audioLibrary: AudioLibrary;
+  private ffmpegManager: FfmpegManager;
   private cleanupInterval: NodeJS.Timeout | null;
 
-  constructor(bufferStore: BufferStore, audioLibrary: AudioLibrary) {
+  constructor(bufferStore: BufferStore, audioLibrary: AudioLibrary, ffmpegManager: FfmpegManager) {
     this.sessions = new Map();
     this.bufferStore = bufferStore;
     this.audioLibrary = audioLibrary;
+    this.ffmpegManager = ffmpegManager;
     this.cleanupInterval = null;
   }
 
@@ -38,7 +41,7 @@ export class SessionManager {
     }
 
     const sessionId = `sess_${uuidv4()}`;
-    const qualityLevels = qualities || Object.values(config.HLS_BITRATES.map((b) => `${b}k`));
+    const qualityLevels = qualities || config.HLS_BITRATES.map((b) => `${b}k`);
 
     const session: Session = {
       id: sessionId,
@@ -65,7 +68,61 @@ export class SessionManager {
       'Session created'
     );
 
+    // Spawn ffmpeg process asynchronously
+    this.startFfmpegProcess(sessionId, audioFile.path, qualityLevels, config.HLS_BITRATES);
+
     return sessionId;
+  }
+
+  private async startFfmpegProcess(
+    sessionId: string,
+    audioFilePath: string,
+    qualities: string[],
+    bitrates: number[]
+  ): Promise<void> {
+    const session = this.getSession(sessionId);
+    if (!session) {
+      logger.error({ sessionId }, 'Session not found when starting ffmpeg');
+      return;
+    }
+
+    try {
+      const ffmpegProcess = await this.ffmpegManager.spawn({
+        sessionId,
+        audioFilePath,
+        qualities,
+        bitrates,
+      });
+
+      session.ffmpegProcess = ffmpegProcess;
+
+      // Generate master playlist
+      this.bufferStore.generateMasterPlaylist(sessionId, qualities, bitrates);
+
+      // Update session state to READY after a short delay
+      // (give ffmpeg time to start generating segments)
+      setTimeout(() => {
+        const currentSession = this.getSession(sessionId);
+        if (currentSession && currentSession.state === SESSION_STATES.INITIALIZING) {
+          currentSession.state = SESSION_STATES.READY;
+          logger.info({ sessionId }, 'Session ready for streaming');
+        }
+      }, 2000);
+
+      // Handle ffmpeg exit
+      ffmpegProcess.on('exit', (code) => {
+        logger.info({ sessionId, exitCode: code }, 'ffmpeg process exited');
+        if (code !== 0 && code !== null) {
+          logger.error({ sessionId, exitCode: code }, 'ffmpeg exited with error');
+          this.terminateSession(sessionId);
+        }
+      });
+    } catch (error) {
+      logger.error({ sessionId, error }, 'Failed to start ffmpeg process');
+      session.state = SESSION_STATES.TERMINATED;
+      this.terminateSession(sessionId);
+      throw error;
+    }
   }
 
   getSession(sessionId: string): Session | undefined {
@@ -145,7 +202,7 @@ export class SessionManager {
     // Kill ffmpeg process if running
     if (session.ffmpegProcess) {
       try {
-        session.ffmpegProcess.kill('SIGTERM');
+        await this.ffmpegManager.killProcess(sessionId, session.ffmpegProcess);
         logger.debug({ sessionId }, 'ffmpeg process terminated');
       } catch (error) {
         logger.error({ sessionId, error }, 'Error killing ffmpeg process');
