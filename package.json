@@ -1,0 +1,23 @@
+{
+  "name": "straimer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Media streaming application for Raspberry Pi",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "yarn workspace backend dev",
+    "build:backend": "yarn workspace backend build",
+    "start:backend": "yarn workspace backend start"
+  },
+  "keywords": [
+    "streaming",
+    "hls",
+    "audio",
+    "raspberry-pi"
+  ],
+  "author": "",
+  "license": "ISC"
+}

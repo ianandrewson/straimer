@@ -41,6 +41,10 @@ build/Release
 node_modules/
 jspm_packages/
 
+# Backend specific
+backend/dist/
+backend/data/audio-library.json
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
