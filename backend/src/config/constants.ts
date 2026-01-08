@@ -7,9 +7,10 @@ export const SESSION_STATES = {
 } as const;
 
 export const QUALITY_LEVELS = {
-  LOW: '64k',
-  MEDIUM: '128k',
-  HIGH: '256k',
+  BAD: '64k',
+  LOW: '128k',
+  MEDIUM: '256k',
+  HIGH: '320k',
 } as const;
 
 export const FFMPEG_PRESETS = {
