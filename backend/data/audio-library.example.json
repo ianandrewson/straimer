@@ -1,0 +1,20 @@
+{
+  "files": [
+    {
+      "id": "audio-001",
+      "title": "Morning Meditation",
+      "path": "/media/audio/meditation.mp3",
+      "duration": 1800,
+      "metadata": {
+        "artist": "Jane Doe",
+        "album": "Mindfulness Series"
+      }
+    },
+    {
+      "id": "audio-002",
+      "title": "Evening Relaxation",
+      "path": "/media/audio/relaxation.mp3",
+      "duration": 3600
+    }
+  ]
+}
