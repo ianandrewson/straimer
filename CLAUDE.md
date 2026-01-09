@@ -132,7 +132,29 @@ See `backend/.env.example` for full list.
 - HLS streaming (GET /stream/:sessionId/...)
 - Full authentication on all endpoints
 
-**Phase 5**: See [PLAN.md](./PLAN.md) for remaining tasks
+## Documentation
+
+Comprehensive codebase documentation is available:
+
+- **[Documentation Index](./.claude/docs/INDEX.md)** - Main documentation hub with quick links
+- **[Codebase Schema](./.claude/docs/codebase-schema.yaml)** - Machine-readable codebase structure
+- **[Prime Command](./.claude/commands/prime.md)** - Quick reference for AI assistants
+
+### Domain Documentation
+
+- [Configuration Domain](./.claude/docs/domains/configuration.md) - Environment variables and constants
+- [Middleware Domain](./.claude/docs/domains/middleware.md) - Authentication, logging, error handling
+- [Models Domain](./.claude/docs/domains/models.md) - TypeScript type definitions
+- [Routes Domain](./.claude/docs/domains/routes.md) - API endpoint handlers
+- [Services Domain](./.claude/docs/domains/services.md) - Core business logic
+- [Utils Domain](./.claude/docs/domains/utils.md) - Helper utilities
+
+### Pattern Documentation
+
+- [Session State Machine](./.claude/docs/patterns/session-state-machine.md) - Session lifecycle management
+- [Memory-Only Streaming](./.claude/docs/patterns/memory-streaming.md) - Zero-disk-IO HLS delivery
+- [Multi-Bitrate Transcoding](./.claude/docs/patterns/multi-bitrate-transcoding.md) - Efficient ffmpeg usage
+- [Authentication](./.claude/docs/patterns/authentication.md) - Bearer token security
 
 ## Important Notes
 
@@ -140,3 +162,4 @@ See `backend/.env.example` for full list.
 - The backend is optimized for Raspberry Pi (limited CPU/memory)
 - All HLS content is served from memory to minimize disk I/O
 - Sessions auto-cleanup after 5 minutes of inactivity
+- Full API documentation available at [docs/backend/API.md](./docs/backend/API.md)

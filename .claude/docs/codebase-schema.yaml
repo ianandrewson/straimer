@@ -1,0 +1,232 @@
+version: "1.0"
+name: Straimer
+description: HLS audio streaming server optimized for Raspberry Pi with adaptive bitrate streaming
+type: monorepo
+
+metadata:
+  language: TypeScript
+  framework: Express.js
+  runtime: Node.js 20.x
+  package_manager: yarn workspaces
+  architecture: 3-layer (HTTP → Session Manager → ffmpeg)
+  deployment_target: Raspberry Pi 4
+  performance_targets:
+    memory: 200-500MB
+    cpu_per_stream: 20-40%
+    max_concurrent_streams: 5-10
+    max_bitrate: 256kbps
+
+workspaces:
+  - name: backend
+    path: backend
+    type: service
+    language: TypeScript
+    description: Node.js streaming server with HLS transcoding
+  - name: frontend
+    path: frontend
+    type: client
+    status: placeholder
+    description: React Native mobile client (planned)
+
+domains:
+  - name: Configuration
+    path: backend/src/config
+    description: Centralized environment and constants management
+    confidence: high
+    key_files:
+      - env.ts
+      - constants.ts
+
+  - name: Middleware
+    path: backend/src/middleware
+    description: Express middleware for authentication, logging, and error handling
+    confidence: high
+    key_files:
+      - auth.ts
+      - logger.ts
+      - error.ts
+
+  - name: Models
+    path: backend/src/models
+    description: TypeScript type definitions and interfaces
+    confidence: high
+    key_files:
+      - Session.ts
+      - AudioFile.ts
+      - StreamConfig.ts
+
+  - name: Routes
+    path: backend/src/routes
+    description: API endpoint handlers for sessions, library, and streaming
+    confidence: high
+    key_files:
+      - index.ts
+      - session.ts
+      - library.ts
+      - stream.ts
+
+  - name: Services
+    path: backend/src/services
+    description: Core business logic for session, ffmpeg, buffer, and library management
+    confidence: high
+    key_files:
+      - SessionManager.ts
+      - FfmpegManager.ts
+      - BufferStore.ts
+      - AudioLibrary.ts
+
+  - name: Utils
+    path: backend/src/utils
+    description: Shared utilities for logging, validation, cleanup, and memory monitoring
+    confidence: high
+    key_files:
+      - logger.ts
+      - validation.ts
+      - cleanup.ts
+      - memory.ts
+
+patterns:
+  - name: Session State Machine
+    description: Lifecycle management for streaming sessions
+    confidence: high
+    states:
+      - INITIALIZING
+      - READY
+      - ACTIVE
+      - IDLE
+      - TERMINATED
+
+  - name: Memory-Only Streaming
+    description: ffmpeg pipes to Node.js memory buffers, no disk I/O
+    confidence: high
+    rationale: Minimize SD card wear on Raspberry Pi
+
+  - name: Single Process Multi-Bitrate
+    description: One ffmpeg process outputs 3 bitrates simultaneously
+    confidence: high
+    rationale: CPU efficiency on resource-constrained devices
+
+  - name: Bearer Token Authentication
+    description: Simple token-based auth for all protected endpoints
+    confidence: high
+
+  - name: Structured Logging
+    description: JSON logging with Pino for production monitoring
+    confidence: high
+
+api_endpoints:
+  public:
+    - method: GET
+      path: /health
+      description: Health check with system stats
+
+  protected:
+    - method: GET
+      path: /api/library
+      description: List all audio files
+    - method: POST
+      path: /api/sessions
+      description: Create new streaming session
+    - method: GET
+      path: /api/sessions
+      description: List all active sessions
+    - method: GET
+      path: /api/sessions/:sessionId
+      description: Get session details
+    - method: DELETE
+      path: /api/sessions/:sessionId
+      description: Terminate session
+    - method: GET
+      path: /stream/:sessionId/master.m3u8
+      description: HLS master playlist
+    - method: GET
+      path: /stream/:sessionId/:quality/playlist.m3u8
+      description: HLS variant playlist
+    - method: GET
+      path: /stream/:sessionId/:quality/:segment
+      description: HLS media segments
+
+dependencies:
+  runtime:
+    express: ^4.18.2
+    pino: ^8.17.2
+    pino-http: ^9.0.0
+    dotenv: ^16.4.1
+    joi: ^17.12.0
+    uuid: ^9.0.1
+    cors: ^2.8.5
+
+  development:
+    typescript: ^5.3.3
+    tsx: ^4.7.0
+    nodemon: ^3.0.3
+    eslint: ^8.56.0
+    "@typescript-eslint/eslint-plugin": ^6.19.0
+    "@typescript-eslint/parser": ^6.19.0
+    pino-pretty: ^10.3.1
+
+  external:
+    - name: ffmpeg
+      type: system
+      description: Audio transcoding and HLS segmentation
+      required: true
+
+data_flows:
+  session_creation:
+    - API Request → Session Manager
+    - Session Manager → Audio Library (validate file)
+    - Session Manager → Ffmpeg Manager (spawn process)
+    - Ffmpeg Manager → Buffer Store (capture segments)
+    - Response → Client (sessionId)
+
+  streaming:
+    - Client → Stream Routes (HLS request)
+    - Routes → Session Manager (update access time)
+    - Routes → Buffer Store (retrieve segment/playlist)
+    - Buffer Store → Client (stream data)
+
+  cleanup:
+    - Idle Timer → Session Manager
+    - Session Manager → Ffmpeg Manager (kill process)
+    - Session Manager → Buffer Store (clear buffers)
+    - Session Manager → Remove session
+
+environment_variables:
+  PORT: Server port (default 3000)
+  API_KEY: Bearer token for authentication
+  AUDIO_LIBRARY_PATH: Path to audio-library.json
+  AUDIO_FILES_ROOT: Root directory for audio files
+  SESSION_IDLE_TIMEOUT_MS: Session timeout in ms (default 300000)
+  SESSION_CLEANUP_INTERVAL_MS: Cleanup interval in ms (default 60000)
+  HLS_SEGMENT_DURATION: Segment duration in seconds (default 10)
+  HLS_BITRATES: Comma-separated bitrates in kbps (default 64,128,256)
+  LOG_LEVEL: Pino log level (default info)
+  NODE_ENV: Environment (development/production)
+
+file_patterns:
+  source_code: "backend/src/**/*.ts"
+  compiled: "backend/dist/**/*.js"
+  tests: "backend/tests/**/*"
+  config: "backend/.env.example, backend/tsconfig.json, package.json"
+  data: "backend/data/**/*.json"
+  documentation: "docs/**/*.md"
+
+conventions:
+  naming:
+    constants: UPPER_SNAKE_CASE
+    variables: camelCase
+    classes: PascalCase
+    files: camelCase.ts
+  imports: ES6 modules with absolute paths
+  error_handling: HTTP status constants from config/constants.ts
+  logging: Structured JSON with Pino logger
+  type_safety: Strict TypeScript mode enabled
+
+development_commands:
+  install: yarn install
+  dev: yarn dev:backend
+  build: yarn build:backend
+  start: yarn start:backend
+  type_check: yarn workspace backend type-check
+  lint: yarn workspace backend lint
+  test_ffmpeg: yarn workspace backend test:ffmpeg
